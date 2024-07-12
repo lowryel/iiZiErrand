@@ -73,6 +73,7 @@ func (repo *Repository) ChangePasswordHandler(ctx *fiber.Ctx) error {
     if err := session.Begin(); err != nil {
         return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start transaction"})
     }
+
 	loginObj := &models.Login{
 		Email: changePassObj.Email,
 		Password: changePassObj.OldPass,
@@ -523,9 +524,34 @@ func (r *Repository) RateErrandRunner(ctx *fiber.Ctx) error {
 }
 
 
+// user ratings
+func (r *Repository) GetUserRatings(ctx *fiber.Ctx) error {
+	user_id := ctx.Params("user_id")
+	_, err := models.GetIdFromToken(ctx.Get("Authorization"))
+	if err != nil{
+		errorLogger.Println("session error: ", err)
+		return err
+	}
+	// retrieve user ratings
+	user := &[]models.RatingModel{}
+	err = r.DBConn.Where("employer_id = ?", user_id).Find(user)
+	if err != nil{
+		errorLogger.Println("failed to retrieve user profile", err)
+		ctx.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"error": "failed to retrieve user profile",
+		})
+		return err
+	}
 
-
-
+	// calculate the average of user.rating
+	averageRating := 0.0
+	for _, rating := range *user {
+		averageRating += rating.Rating
+	}
+	averageRating = averageRating / float64(len(*user))
+	infoLogger.Printf("user rating retrieved %v stars: ", averageRating)
+	return ctx.Status(http.StatusOK).JSON(user)
+}
 
 
 /* CREATE TASK */

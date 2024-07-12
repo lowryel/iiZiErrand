@@ -7,7 +7,7 @@
 
 - Tagline: "Get your errands done with ease!"
     
--   Description: ErrandEase is a mobile app that connects users with local errand runners who can help with         various tasks, such as:
+-   Description: ErrandEase is a mobile app that connects users with local errand runners who can help with various tasks, such as:
     Grocery shopping
     Dog walking
     Household chores

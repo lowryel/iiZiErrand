@@ -17,6 +17,7 @@ func (r *Repository) Routes(app *fiber.App) {
 	api.Delete("/errand-runner/delete", r.DeleteErrandRunnerProfile)
 	api.Post("/task/create", r.CreateTask)
 	api.Post("/rating/:user_id/create", r.RateUser)
+	api.Get("/rating/:user_id/all", r.GetUserRatings)  //
 	api.Post("/rating/errand-runner/:errand_runner_id", r.RateErrandRunner)
 	api.Get("/tasks", r.GetAllTasks)
 	api.Get("/user/tasks", r.GetAllUserTasks)

@@ -100,12 +100,12 @@ func CompareHashAndPass(hashed, pass string) error{
 // generate jwt token
 func GenerateToken(email, user_type string, userId string) (string, error) {
     claims := JWTClaims{
-      UserId: userId,
-      Email: email,
-      UserType: user_type,
-      StandardClaims: jwt.StandardClaims{
-        ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-      },
+		UserId: userId,
+		Email: email,
+		UserType: user_type,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+		},
     }
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     tokenString, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
@@ -176,35 +176,35 @@ func JWTMiddleware() fiber.Handler {
 		}
 	// Cache valid token
 	tokenCache.Set(string(tokenString), token, 0)
-	// Extract and store user identity
-	user := token.Claims.(jwt.MapClaims) 
-	c.Locals("user", user)
-	c.Next()
+		// Extract and store user identity
+		user := token.Claims.(jwt.MapClaims) 
+		c.Locals("user", user)
+		c.Next()
 	}
 }
 
 
 // Centralized parsing and validation
 func parseAndValidateToken(tokenString string) (*jwt.Token, error) {
-  token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-    if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-        return nil, fmt.Errorf("unexpected signing method: %v", token.Header["Token"])
-    }
-    return []byte(os.Getenv("SECRET_KEY")), nil
-  })
-  if err != nil {
-    return nil, err 
-  }
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["Token"])
+		}
+		return []byte(os.Getenv("SECRET_KEY")), nil
+	})
+	if err != nil {
+		return nil, err 
+	}
 
-  // Additional validation checks
-  if !token.Valid {
-    return nil, ErrorToken
-  }
-  return token, nil
+	// Additional validation checks
+	if !token.Valid {
+		return nil, ErrorToken
+	}
+	return token, nil
 }
 // Custom error types
 var (
-  ErrorToken= errors.New("token expired")
+  	ErrorToken= errors.New("token expired")
 )
 
 /* errandProfile.Skills [This implementation will: Keep all existing skills. Add any new skills from the update request that aren't already in the list. Avoid duplicates.] */

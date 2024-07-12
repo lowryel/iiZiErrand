@@ -47,7 +47,7 @@ type RatingModel struct {
     EmployerId  string    `json:"employer_id"` // id from url id = ctx.Params(user_id)
     RunnerId    string    `json:"runner_id"`  // must be logged in to get the id
     TaskId      string    `json:"task_id"`	// get task is by the employer id
-    Rating      float32   `json:"rating"`	
+    Rating      float64   `json:"rating"`	
     Review      string    `json:"review"`
     CreatedAt   time.Time `json:"created_at"`
 }
