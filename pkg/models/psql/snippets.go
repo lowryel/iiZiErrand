@@ -8,16 +8,11 @@ import (
 	_ "github.com/lib/pq"
 	"xorm.io/xorm"
 
-	"github.com/joho/godotenv"
 )
 
 
 func DBConnection() (*xorm.Engine, error) {
-	// load .env file
-	err := godotenv.Load()
-	if err != nil {
-		return nil, err
-	}
+
 
 	// connect to database
 	dsn := fmt.Sprintf(

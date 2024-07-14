@@ -2,10 +2,13 @@ package main
 
 import (
 	"errors"
+	"math"
+	"strconv"
 	"time"
 
 	"fmt"
 
+	// rank "github.com/eugene/iizi_errand"
 	"github.com/eugene/iizi_errand/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,6 +30,10 @@ func (r *Repository) insertUser(user *models.UserModel) error {
 
 
 func createUserProfile(user *models.UserModel) interface{} {
+	// location, err := rank.GetLocation(fmt.Sprintf(url, api_key))
+    // if err != nil {
+    //     return err
+    // }
 	if user.UserType == "USER" {
 		return &models.UserProfile{
 			UserId:    user.UserId,
@@ -36,6 +43,7 @@ func createUserProfile(user *models.UserModel) interface{} {
 			LastName:  user.LastName,
 			Email:     user.Email,
 			UserType:  user.UserType,
+			// Location: location,
 		}
 	}
 	return &models.ErrandRunnerProfile{
@@ -46,6 +54,7 @@ func createUserProfile(user *models.UserModel) interface{} {
 		LastName:  user.LastName,
 		Email:     user.Email,
 		UserType:  user.UserType,
+		// Location: location,
 	}
 }
 
@@ -79,6 +88,14 @@ func (repo *Repository) AuthenticateUser(loginObj *models.Login) (*models.UserMo
 }
 
 
+func (r *Repository) GetUserProfile(userId string) (*models.UserProfile, error) {
+    var userProfile models.UserProfile
+    _, err := r.DBConn.Where("user_id = ?", userId).Get(&userProfile)
+    if err != nil {
+		return nil, fmt.Errorf("failed to retrieve user profile: %v", err)
+    }
+    return &userProfile, nil
+}
 
 
 
@@ -101,4 +118,46 @@ func (repo *Repository) UpdateUserPassword(email string, newPassword string) err
 }
 
 
+
+
+func CalculateDistanceScore(taskLoc, runnerLoc models.Location) float64 {
+    distance := calculateDistance(taskLoc, runnerLoc)
+    return math.Max(1-distance/10, 0) // Assume 10km is the max preferred distance
+}
+
+
+func calculateDistance(loc1, loc2 models.Location) float64 {
+    // Haversine formula for calculating distance between two points on a sphere
+    const earthRadius = 6371 // km
+
+	lat1, err := strconv.ParseFloat(loc1.Latitude, 64)
+    if err != nil {
+        return 0.0
+    }
+    lat1 = lat1 * math.Pi / 180
+    lon1, err := strconv.ParseFloat(loc1.Longitude, 64)
+    if err != nil {
+		return 0.0
+    }
+	lon1 = lon1 * math.Pi / 180
+
+	lat2, err := strconv.ParseFloat(loc2.Latitude, 64)
+    if err != nil {
+		return 0.0
+    }
+    lat2 = lat2 * math.Pi / 180
+	lon2, err := strconv.ParseFloat(loc2.Longitude, 64)
+    if err != nil {
+		return 0.0
+    }
+	lon2 = lon2 * math.Pi / 180
+
+    dlat := lat2 - lat1
+    dlon := lon2 - lon1
+
+    a := math.Pow(math.Sin(dlat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(dlon/2), 2)
+    c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+    return earthRadius * c
+}
 

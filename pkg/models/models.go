@@ -26,8 +26,9 @@ const (
 )
 
 type TaskModel struct{
-	TaskId	string `json:"task_id"`
-	Location	string	`xorm:"not null" json:"location"`
+	TaskId	string `json:"task_id" xorm:"pk"`
+	Longitude	string	`xorm:"not null" json:"longitude"`
+	Latitude	string	`xorm:"not null" json:"latitude"`
 	Budget		string	`xorm:"not null" json:"budget"`
 	Category	string	`xorm:"not null" json:"category"`
 	TimeReq		string	`json:"time_req"`
@@ -38,6 +39,12 @@ type TaskModel struct{
 	ErrandRunnerId	string  `json:"errand_runner_id"`
 	CreatedAt time.Time	`json:"created_at"`
 	UpdatedAt	time.Time	`json:"updated_at"`
+}
+
+
+type Location struct {
+    Latitude  string `json:"latitude"`
+    Longitude string `json:"longitude"`
 }
 
 
@@ -55,14 +62,15 @@ type RatingModel struct {
 
 
 type UserProfile struct{
-	UserId	string	`json:"user_id"`
+	UserId	string	`json:"user_id" xorm:"pk"`
 	FirstName	string `json:"first_name"`
 	LastName	string `json:"last_name"`
 	Phone	string `json:"phone"`
 	Email	string `json:"email"`
 	Rating []*RatingModel  `json:"rating"`// Errand Ruuner will update this
-	Location  string `json:"location"` // [Name, GPS Address]
 	UserType  string `json:"user_type"`
+	Longitude	string	`xorm:"not null" json:"longitude"`
+	Latitude	string	`xorm:"not null" json:"latitude"`
 	Tasks []*TaskModel
 	NationalId string `json:"national_id"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -71,18 +79,19 @@ type UserProfile struct{
 
 
 type ErrandRunnerProfile struct{
-	UserId	string				`json:"user_id"`
+	UserId	string				`json:"user_id" xorm:"pk"`
 	FirstName	string 			`json:"first_name"`
 	LastName	string 			`json:"last_name"`
 	Phone	string 				`json:"phone"`
 	Email	string 				`json:"email"`
 	UserType  string 			`json:"user_type"`
 	Tasks []*TaskModel 			`json:"tasks"`
-	Location 	string 			`json:"location"` // Location [Name, GPS Address] 	 /
 	NationalId  string 			`json:"national_id"`// update profile with ...		    /
 	Guarantor string 			`json:"guarantor"`// update profile with ...			/
 	GuarantorPhone  string 		`json:"guarantor_phone"`// update profile with ...		/
 	AvailableTime   string 		`json:"available_time"`// update profile with ...		/
+	Longitude	string	`xorm:"not null" json:"longitude"`
+	Latitude	string	`xorm:"not null" json:"latitude"`
 	Ratings  []*RatingModel 	`json:"ratings"`// update profile with ...
 	Skills 	[]string 			`json:"skills"`// update profile with ...				/
 	Photo 	string 			`json:"photo"`// update profile with ...

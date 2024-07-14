@@ -91,8 +91,6 @@ func HashPass(pass string) (string, error){
 
 func CompareHashAndPass(hashed, pass string) error{
 	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(pass))
-	infoLogger.Println(hashed, pass)
-	// errorLogger.Printf("compare hash and pass error: %s", err)
 	return err
 }
 
@@ -115,6 +113,7 @@ func GenerateToken(email, user_type string, userId string) (string, error) {
     return tokenString, nil
 }
 
+
 // DecodeToken decodes and validates the JWT token and extracts the claims.
 func DecodeToken(tokenString string) (*JWTClaims, error) {
     // Parse and validate the JWT token
@@ -136,6 +135,10 @@ func DecodeToken(tokenString string) (*JWTClaims, error) {
 
 
 func GetIdFromToken(tokenString string) (*JWTClaims, error){
+	if tokenString == ""{
+		errorLogger.Println("token not provided")
+		return nil, fmt.Errorf("token missing")
+	}
 	tokenStr := strings.Split(tokenString, " ")[1]
 	claims, err := DecodeToken(tokenStr)
 	if err != nil{

@@ -1,0 +1,15 @@
+[Unit]
+Description=iizi Go Application
+After=network.target
+Documentation=[www.google.com, ]
+
+[Service]
+Type=simple
+User=lowry
+WorkingDirectory=/home/lowry/Backend/ErrandEase/cmd/web
+ExecStart=/home/lowry/Backend/ErrandEase/cmd/web/main
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

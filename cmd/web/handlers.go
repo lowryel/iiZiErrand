@@ -2,9 +2,12 @@ package main
 
 import (
 	"errors"
+
 	"net/http"
+
 	"time"
 
+	rank "github.com/eugene/iizi_errand"
 	"github.com/eugene/iizi_errand/pkg/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -15,6 +18,10 @@ type Repository struct {
 	DBConn *xorm.Engine
 }
 
+var (
+	// api_key = os.Getenv("GEO_API_KEY")
+	// url = "https://api.ipgeolocation.io/ipgeo?apiKey=%v&ip=%v"
+)
 
 func (r *Repository) CreateUser(ctx *fiber.Ctx) error {
 	user := &models.UserModel{}
@@ -41,6 +48,41 @@ func (r *Repository) CreateUser(ctx *fiber.Ctx) error {
 	if err := session.Begin(); err != nil {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to begin transaction"})
 	}
+	
+
+
+
+
+
+
+	// has some internal issues. need to check them
+	// newLocation, err := rank.GetLocation(fmt.Sprintf("https://api.ipgeolocation.io/ipgeo?apiKey=%s&ip=%s", api_key, ctx.IP()))
+	// if err != nil{
+	// 	session.Rollback()
+	// 	errorLogger.Printf("geolocation not accessible: %v", err)
+	// 	return err
+	// }
+	
+	// location := &models.Location{
+	// 	Id: uuid.NewString(),
+	// 	Latitude: newLocation.Latitude,
+	// 	Longitude: newLocation.Longitude,
+	// }
+	
+	// _, err = r.DBConn.Insert(location)
+	// if err != nil{
+	// 	errorLogger.Println("session error", err)
+	// 	session.Rollback()
+	// 	ctx.Status(http.StatusInternalServerError)
+	// 	return err
+	// }
+
+	// infoLogger.Println("--------------------------------------------------------------------")
+
+
+
+
+
 
 	/* INSERT DATA INTO DB */
 	if err := r.insertUser(user); err != nil {
@@ -56,7 +98,7 @@ func (r *Repository) CreateUser(ctx *fiber.Ctx) error {
 }
 
 
-// NEED MORE WORK
+// 
 func (repo *Repository) ChangePasswordHandler(ctx *fiber.Ctx) error {
     changePassObj := &models.ChangePass{}
     if err := ctx.BodyParser(changePassObj); err != nil {
@@ -120,7 +162,7 @@ func (r *Repository) UpdateUserProfile(ctx *fiber.Ctx) error {
 	userProfile := &models.UserProfile{}
 	err = ctx.BodyParser(userProfile)
 	if err != nil {
-		errorLogger.Println("failed to parse data")
+		errorLogger.Printf("failed to parse data: %v", err)
 		return nil
 	}
 	session := r.DBConn.NewSession()
@@ -143,11 +185,24 @@ func (r *Repository) UpdateUserProfile(ctx *fiber.Ctx) error {
         return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User profile not found"})
     }
 
-	update.Location = userProfile.Location
-	update.NationalId = userProfile.NationalId
-	update.Phone = userProfile.Phone
-	update.UpdatedAt = time.Now()
-	_, err = r.DBConn.Where("user_id = ?", user_id).Update(update)
+
+	location, err := rank.GetLocation()
+	if err != nil {
+		errorLogger.Println(err)
+		session.Rollback()
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get location"})
+	}
+
+    // Update specific fields
+    _, err = r.DBConn.Table("user_profile").Where("user_id = ?", user_id).
+        Update(map[string]interface{}{
+            "national_id": userProfile.NationalId,
+            "phone":       userProfile.Phone,
+            "updated_at":  time.Now(),
+            "latitude":    location.Latitude,
+            "longitude":   location.Longitude,
+        })
+	// _, err = r.DBConn.ID(user_id).Update(update)
 	if err != nil{
 		errorLogger.Println("session error", err)
 		session.Rollback()
@@ -156,6 +211,7 @@ func (r *Repository) UpdateUserProfile(ctx *fiber.Ctx) error {
 		})
 		return err
 	}
+
 	// Commit transaction
 	err = session.Commit()
 	if err != nil {
@@ -213,7 +269,13 @@ func (r *Repository) UpdateErrandRunnerProfile(ctx *fiber.Ctx) error {
         return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Errand runner profile not found"})
     }
 
-	updateErrandModel.Location = errandProfile.Location
+	location, err := rank.GetLocation()
+	if err != nil {
+		errorLogger.Println(err)
+	}
+
+	updateErrandModel.Latitude = location.Latitude
+	updateErrandModel.Longitude = location.Longitude
 	updateErrandModel.NationalId = errandProfile.NationalId
 	updateErrandModel.Phone = errandProfile.Phone
 	updateErrandModel.AvailableTime = errandProfile.AvailableTime
@@ -375,9 +437,8 @@ func (r *Repository) RateUser(ctx *fiber.Ctx) error {
 		return nil
 	}
 	
-	userProfile := &models.UserProfile{}
 	// retrieve user data before updating
-	has, err := r.DBConn.Where("user_id = ?", tasker_id).Get(userProfile)
+	userProfile, err := r.GetUserProfile(tasker_id)
 	if err != nil{
 		errorLogger.Println("failed to retrieve user profile", err)
 		session.Rollback()
@@ -386,9 +447,6 @@ func (r *Repository) RateUser(ctx *fiber.Ctx) error {
 		})
 		return err
 	}
-    if !has {
-        return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User profile not found"})
-    }
 
 	if userProfile.UserId == ""{
 		errorLogger.Println("incorrecr user id")
@@ -587,8 +645,17 @@ func (r *Repository) CreateTask(ctx *fiber.Ctx) error {
 		return err
 	}
 
+	// get location from a service
+	location, err := rank.GetLocation()
+	if err != nil{
+		errorLogger.Println("session error", err)
+		return err
+	}
+
 	task.TaskId = uuid.NewString()
 	task.Status = models.Created
+	task.Latitude = location.Latitude
+	task.Longitude = location.Longitude
 	task.UserId = user_id
 	task.CreatedAt = time.Now()
 	task.UpdatedAt = time.Now()
@@ -643,63 +710,69 @@ func (r *Repository) CreateTask(ctx *fiber.Ctx) error {
 
 
 // get errand runner id from url param NOT DONE YET
-func (r *Repository) AssignTask(ctx *fiber.Ctx) error {
+func (r *Repository) TasksNearYou(ctx *fiber.Ctx) error {
+    tokenString := ctx.Get("Authorization")
+    claims, err := models.GetIdFromToken(tokenString)
+    if err != nil {
+        errorLogger.Println("session error: ", err)
+        return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid token"})
+    }
 
-	tokenString := ctx.Get("Authorization")
-	claims, err := models.GetIdFromToken(tokenString)
-	if err != nil{
-		errorLogger.Println("session error: ", err)
-		return err
-	}
+    user_id := claims.UserId
+    infoLogger.Println(user_id)
 
-	user_id := claims.UserId
-	infoLogger.Println(user_id)
-	if claims.UserType != "USER"{
-		errorLogger.Println("unauthorized access")
-		ctx.Status(http.StatusUnauthorized).JSON(&fiber.Map{
-			"msg":"can't access this resource",
-		})
-		return err
-	}
+    if claims.UserType != "ERRAND" {
+        errorLogger.Println("unauthorized access")
+        return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Can't access this resource"})
+    }
 
-	task := &models.TaskModel{}
-	err = ctx.BodyParser(task)
-	if err != nil {
-		errorLogger.Println("failed to parse data")
-		return err
-	}
+    tasks := &[]models.TaskModel{}
+    user := &models.ErrandRunnerProfile{}
 
-	session := r.DBConn.NewSession()
-	defer session.Close()
-	err = session.Begin()
-	if err != nil{
-		errorLogger.Println("session error", err)
-		return err
-	}
+    session := r.DBConn.NewSession()
+    defer session.Close()
 
-	task.Status = models.Assigned
-	task.UserId = user_id
-	task.UpdatedAt = time.Now()
-	// retrieve user data before updating
-	_, err = r.DBConn.Insert(task)
-	if err != nil{
-		errorLogger.Println("session error", err)
-		session.Rollback()
-		ctx.Status(http.StatusInternalServerError).JSON(&fiber.Map{
-			"error": "failed transaction",
-		})
-		return err
-	}
+    if err := session.Begin(); err != nil {
+        errorLogger.Println("session error", err)
+        return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start transaction"})
+    }
 
-	// Commit transaction
-	err = session.Commit()
-	if err != nil {
-		return ctx.Status(http.StatusInternalServerError).JSON(&fiber.Map{
-			"error": "failed transaction",
-		})
-	}
-	infoLogger.Println("task creation successful")
-	return ctx.Status(http.StatusCreated).JSON(&fiber.Map{"msg": task})
+    if err := r.DBConn.Where(" status=? ", "CREATED").Find(tasks); err != nil {
+        errorLogger.Println("session error", err)
+        session.Rollback()
+        return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch tasks"})
+    }
+
+    if _, err := r.DBConn.Where("user_id = ?", user_id).Get(user); err != nil {
+        errorLogger.Println("session error", err)
+        session.Rollback()
+        return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch user data"})
+    }
+
+    nearbyTasks := []models.TaskModel{}
+    userLocation := &models.Location{
+        Latitude:  user.Latitude,
+        Longitude: user.Longitude,
+    }
+
+    for _, task := range *tasks {
+        taskLocation := &models.Location{
+            Latitude:  task.Latitude,
+            Longitude: task.Longitude,
+        }
+        score := CalculateDistanceScore(*taskLocation, *userLocation)
+        if score <= 10 {
+            nearbyTasks = append(nearbyTasks, task)
+        }
+    }
+
+    if err := session.Commit(); err != nil {
+        errorLogger.Println("commit error", err)
+        return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to commit transaction"})
+    }
+
+    infoLogger.Println("tasks near you")
+    return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"data": nearbyTasks, "msg": "Tasks near you"})
 }
 
 
@@ -755,7 +828,8 @@ func (r *Repository) UpdateTask(ctx *fiber.Ctx) error {
 
 	// update task
 	updateTask := &models.TaskModel{
-		Location: task.Location,
+		Latitude: task.Latitude,
+		Longitude: task.Longitude,
 		Budget: task.Budget,
 		TimeReq: task.TimeReq,
 		Category: task.Category,
@@ -788,6 +862,7 @@ func (r *Repository) UpdateTask(ctx *fiber.Ctx) error {
 
 
 func (r *Repository) GetAllTasks(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Add("Cache-Time", "6000")
 	tasks := &[]models.TaskModel{}
 	session := r.DBConn.NewSession()
 	defer session.Close()
@@ -816,13 +891,14 @@ func (r *Repository) GetAllTasks(ctx *fiber.Ctx) error {
 		})
 	}
 
-	infoLogger.Println("task update successful")
+	infoLogger.Println("tasks")
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{"msg": tasks})
 }
 
 
 
 func (r *Repository) GetAllUserTasks(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Add("Cache-Time", "6000") // cache response
 	tokenStr := ctx.Get("Authorization")
 	claims, err := models.GetIdFromToken(tokenStr)
 	if err != nil{
@@ -864,7 +940,7 @@ func (r *Repository) GetAllUserTasks(ctx *fiber.Ctx) error {
 			"error": "failed to commit transaction",
 		})
 	}
-	infoLogger.Println("task update successful")
+	infoLogger.Println("user tasks")
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{"data": tasks})
 }
 
@@ -916,16 +992,10 @@ func (r *Repository) DeleteTask(ctx *fiber.Ctx) error {
 		return err
 	}
 	infoLogger.Println("task removed successfully")
-	return ctx.Status(204).JSON(&fiber.Map{"msg": "task removed"})
+	return ctx.Status(http.StatusNoContent).JSON(&fiber.Map{"msg": "task removed"})
 }
 
 
-
-
-
-
-
-// NEED SOME MORE SECURITY CHECKS ALL 3
 func (r *Repository) CreateApplication(ctx *fiber.Ctx) error {
 	task_id := ctx.Params("task_id")
 	tokenStr := ctx.Get("Authorization")
@@ -961,10 +1031,13 @@ func (r *Repository) CreateApplication(ctx *fiber.Ctx) error {
         return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create application"})
     }
 
+	infoLogger.Println("application successful")
     return ctx.Status(http.StatusCreated).JSON(app)
 }
 
+
 func (r *Repository) GetApplicationsByErrandID(ctx *fiber.Ctx) error {
+	ctx.Response().Header.Add("Cache-Time", "6000")
     task_id := ctx.Params("task_id")
     if task_id == "" {
         return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "task ID is required"})
@@ -990,6 +1063,7 @@ func (r *Repository) GetApplicationsByErrandID(ctx *fiber.Ctx) error {
         return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve applications"})
     }
 
+	infoLogger.Println("errand runner application")
     return ctx.JSON(applications)
 }
 
@@ -1054,6 +1128,7 @@ func (r *Repository) UpdateApplicationStatus(ctx *fiber.Ctx) error {
         return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to commit transaction"})
     }
 
+	infoLogger.Println("application status updated")
     return ctx.JSON(app)
 }
 
@@ -1093,5 +1168,6 @@ func (repo *Repository) LoginHandler(ctx *fiber.Ctx) error {
         return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to commit transaction"})
     }
 
+	infoLogger.Println("login successful")
     return ctx.Status(http.StatusOK).JSON(fiber.Map{"token": token})
 }
