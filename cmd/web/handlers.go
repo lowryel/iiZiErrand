@@ -49,41 +49,6 @@ func (r *Repository) CreateUser(ctx *fiber.Ctx) error {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to begin transaction"})
 	}
 	
-
-
-
-
-
-
-	// has some internal issues. need to check them
-	// newLocation, err := rank.GetLocation(fmt.Sprintf("https://api.ipgeolocation.io/ipgeo?apiKey=%s&ip=%s", api_key, ctx.IP()))
-	// if err != nil{
-	// 	session.Rollback()
-	// 	errorLogger.Printf("geolocation not accessible: %v", err)
-	// 	return err
-	// }
-	
-	// location := &models.Location{
-	// 	Id: uuid.NewString(),
-	// 	Latitude: newLocation.Latitude,
-	// 	Longitude: newLocation.Longitude,
-	// }
-	
-	// _, err = r.DBConn.Insert(location)
-	// if err != nil{
-	// 	errorLogger.Println("session error", err)
-	// 	session.Rollback()
-	// 	ctx.Status(http.StatusInternalServerError)
-	// 	return err
-	// }
-
-	// infoLogger.Println("--------------------------------------------------------------------")
-
-
-
-
-
-
 	/* INSERT DATA INTO DB */
 	if err := r.insertUser(user); err != nil {
 		session.Rollback()
@@ -95,6 +60,61 @@ func (r *Repository) CreateUser(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(http.StatusCreated).JSON(fiber.Map{"message": "User created successfully", "data": user})
+}
+
+
+func (repo *Repository) GetUser(ctx *fiber.Ctx) error{
+	tokenString := ctx.Get("Authorization")
+	claims, err := models.GetIdFromToken(tokenString)
+	if err != nil{
+		errorLogger.Println("session error", err)
+		return err
+	}
+
+	session := repo.DBConn.NewSession()
+	defer session.Close()
+	err = session.Begin()
+	if err != nil{
+		errorLogger.Println("session error", err)
+		return nil
+	}
+	
+	userProfile := &models.UserProfile{}
+	user_id := claims.UserId
+	infoLogger.Println(user_id)
+
+	if claims.UserType == "USER"{
+		has, err := repo.DBConn.Where("user_id = ?", user_id).Get(userProfile)
+		if err != nil{
+			errorLogger.Println("session error", err)
+			session.Rollback()
+			return err
+		}
+		if !has {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User profile not found"})
+		}
+		if err := session.Commit(); err != nil {
+			return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to commit transaction"})
+		}
+
+		return ctx.Status(http.StatusCreated).JSON(fiber.Map{"message": "User created successfully", "data": userProfile})
+	}
+
+	errandRunner := &models.UserProfile{}
+	has, err := repo.DBConn.Where("user_id = ?", user_id).Get(errandRunner)
+	if err != nil{
+		errorLogger.Println("session error", err)
+		session.Rollback()
+		return err
+	}
+	if !has {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User profile not found"})
+	}
+	if err := session.Commit(); err != nil {
+		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to commit transaction"})
+	}
+
+	return ctx.Status(http.StatusCreated).JSON(fiber.Map{"message": "User created successfully", "data": errandRunner})
 }
 
 
@@ -185,7 +205,6 @@ func (r *Repository) UpdateUserProfile(ctx *fiber.Ctx) error {
         return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User profile not found"})
     }
 
-
 	location, err := rank.GetLocation()
 	if err != nil {
 		errorLogger.Println(err)
@@ -193,16 +212,13 @@ func (r *Repository) UpdateUserProfile(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get location"})
 	}
 
+	update.NationalId=userProfile.NationalId
+	update.Phone=userProfile.Phone
+	update.UpdatedAt=time.Now()
+	update.Latitude=location.Latitude
+	update.Longitude=location.Longitude
     // Update specific fields
-    _, err = r.DBConn.Table("user_profile").Where("user_id = ?", user_id).
-        Update(map[string]interface{}{
-            "national_id": userProfile.NationalId,
-            "phone":       userProfile.Phone,
-            "updated_at":  time.Now(),
-            "latitude":    location.Latitude,
-            "longitude":   location.Longitude,
-        })
-	// _, err = r.DBConn.ID(user_id).Update(update)
+	_, err = r.DBConn.ID(user_id).Update(update)
 	if err != nil{
 		errorLogger.Println("session error", err)
 		session.Rollback()

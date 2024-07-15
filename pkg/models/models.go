@@ -71,7 +71,7 @@ type UserProfile struct{
 	UserType  string `json:"user_type"`
 	Longitude	string	`xorm:"not null" json:"longitude"`
 	Latitude	string	`xorm:"not null" json:"latitude"`
-	Tasks []*TaskModel
+	Tasks []*TaskModel	`json:"tasks"`
 	NationalId string `json:"national_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt	time.Time 	`json:"updated_at"`

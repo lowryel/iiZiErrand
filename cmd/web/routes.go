@@ -9,6 +9,7 @@ func (r *Repository) Routes(app *fiber.App) {
 	api := app.Group("api")
 	api.Post("/", r.CreateUser)
 	api.Post("/user/login", r.LoginHandler)
+	api.Get("/user", r.GetUser)
 	// api.Use(models.JWTMiddleware())
 	api.Post("/user/change-password", r.ChangePasswordHandler)
 	api.Put("/user/update", r.UpdateUserProfile)
