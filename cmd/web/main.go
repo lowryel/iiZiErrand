@@ -89,7 +89,7 @@ func main() {
 		PORT = "11750" // Default port if not specified in the environment
 	}
 	// serve on port 3000
-	err = app.Listen("0.0.0.0:"+PORT)
+	err = app.Listen(":"+PORT)
 	if err != nil {
 		errorLogger.Println(err)
 	}
