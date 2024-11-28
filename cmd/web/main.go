@@ -84,13 +84,16 @@ func main() {
 	}
 	r.Routes(app)
 	
-	PORT := os.Getenv("PORT") || "5500"
+	PORT := os.Getenv("PORT")
+	if PORT == "" {
+		PORT = "5500" // Default port if not specified in the environment
+	}
 	// serve on port 3000
 	err = app.Listen(PORT)
 	if err != nil {
 		errorLogger.Println(err)
 	}
-	infoLogger.Println("Server is running on port 3000")
+	infoLogger.Println("Server is running on port %s", PORT)
 }
 
 
