@@ -19,7 +19,7 @@ func DBConnection() (*xorm.Engine, error) {
 	// "host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, os.Getenv("DBUSERNAME"), os.Getenv("PASSWORD"), "iizidb")
 	// engine, err := xorm.NewEngine("postgres", dsn)
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "dpg-ct4368q3esus73fcahbg-a", 5432, os.Getenv("DBUSERNAME"), os.Getenv("PASSWORD"), os.Getenv("DBNAME")
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "dpg-ct4368q3esus73fcahbg-a", 5432, os.Getenv("DBUSERNAME"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
 	engine, err := xorm.NewEngine("postgres", dsn)
 	
 	if err != nil{
