@@ -84,7 +84,7 @@ func main() {
 	}
 	r.Routes(app)
 	
-	PORT := os.Getenv("PORT") || 5500
+	PORT := os.Getenv("PORT") || "5500"
 	// serve on port 3000
 	err = app.Listen(PORT)
 	if err != nil {
